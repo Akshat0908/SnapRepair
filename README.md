@@ -2,6 +2,10 @@
 
 A complete no-code style web application that helps users fix household and device issues through photo/video submissions, AI diagnosis, and expert consultations.
 
+
+<img width="1470" height="836" alt="Screenshot 2025-11-28 at 11 57 46 PM" src="https://github.com/user-attachments/assets/22087562-5145-49da-a40f-c8e17d9f94ce" />
+
+
 ## Features Implemented
 
 ### User Features
@@ -26,6 +30,13 @@ A complete no-code style web application that helps users fix household and devi
 - **Real-time Updates**: Live message updates using Supabase subscriptions
 - **Responsive Design**: Mobile-friendly interface
 - **Type Safety**: Full TypeScript implementation
+
+
+
+<img width="1464" height="645" alt="Screenshot 2025-11-28 at 11 58 47 PM" src="https://github.com/user-attachments/assets/acc5d363-a21c-46c2-be31-6b3fe8dd7679" />
+
+
+
 
 ## Database Schema
 
