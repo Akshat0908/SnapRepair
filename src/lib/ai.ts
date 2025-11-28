@@ -1,6 +1,6 @@
 import { AIDiagnosis } from './db';
 
-const OPENROUTER_API_KEY = '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';
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const SITE_URL = 'https://snaprepair.app'; // Mock URL for OpenRouter headers
 const SITE_NAME = 'Snap Repair';
 
