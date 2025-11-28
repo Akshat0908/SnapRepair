@@ -1,175 +1,131 @@
-import { useState } from 'react';
-import { ArrowLeft, CreditCard, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, CreditCard as CreditCardIcon, Shield, Lock } from 'lucide-react';
+import { CreditCard } from './ui/CreditCard';
+import confetti from 'canvas-confetti';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabaseDB } from '../lib/db_supabase';
 
-type PaymentPageProps = {
+interface PaymentPageProps {
   issueId: string;
   onBack: () => void;
   onSuccess: () => void;
-};
+}
 
 export function PaymentPage({ issueId, onBack, onSuccess }: PaymentPageProps) {
   const { user } = useAuth();
-  const [processing, setProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handlePayment = async () => {
+  const handlePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!user) return;
 
-    setProcessing(true);
+    setLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create payment record in Supabase
+      await supabaseDB.createPayment(issueId, user.id, 19900); // 199.00 in paise
 
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          issue_id: issueId,
-          user_id: user.id,
-          amount: 19900,
-          status: 'completed',
-          payment_provider: 'demo',
-        });
-
-      if (paymentError) throw paymentError;
-
-      await supabase
-        .from('issues')
-        .update({ status: 'consultation_paid' })
-        .eq('id', issueId);
-
-      await supabase
-        .from('messages')
-        .insert({
-          issue_id: issueId,
-          sender: 'system',
-          text: 'Payment successful! An expert will schedule your video consultation shortly. You will receive a calendar invite via email.',
-        });
-
-      setPaymentSuccess(true);
-      setTimeout(() => {
-        onSuccess();
-      }, 2000);
-    } catch (err) {
-      console.error('Payment error:', err);
-      alert('Payment failed. Please try again.');
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      onSuccess();
+    } catch (error) {
+      console.error("Payment failed:", error);
+      alert("Payment failed. Please try again.");
     } finally {
-      setProcessing(false);
+      setLoading(false);
     }
   };
 
-  if (paymentSuccess) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-sm p-8 max-w-md w-full text-center">
-          <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold mb-4 text-slate-900">Payment Successful!</h2>
-          <p className="text-slate-600">
-            Your consultation has been booked. We'll send you a calendar invite shortly.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-slate-600 hover:text-slate-900"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back
+    <div className="min-h-screen bg-orange-50 p-4 md:p-8 flex items-center justify-center">
+      <div className="max-w-md w-full bg-white rounded-[2rem] shadow-xl overflow-hidden border border-orange-100">
+        <div className="p-6 border-b border-orange-50 flex items-center gap-4 bg-orange-50/30">
+          <button onClick={onBack} className="text-slate-400 hover:text-orange-600 transition-colors">
+            <ArrowLeft className="w-6 h-6" />
           </button>
+          <h1 className="text-xl font-black text-slate-900">Secure Checkout</h1>
         </div>
-      </div>
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold mb-2 text-slate-900">Book Remote Consultation</h1>
-        <p className="text-slate-600 mb-8">
-          Get personalized guidance from our expert technicians
-        </p>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-xl font-bold mb-4 text-slate-900">What's Included</h2>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-700">30-minute video consultation with certified technician</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-700">Step-by-step repair guidance</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-700">Parts recommendation if needed</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <span className="text-slate-700">Follow-up support via chat</span>
-              </li>
-            </ul>
+        <div className="p-6 space-y-6">
+          <div className="flex justify-center mb-6">
+            <CreditCard />
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-xl font-bold mb-6 text-slate-900">Payment Summary</h2>
+          <div className="bg-orange-50 p-5 rounded-2xl flex items-start gap-4 border border-orange-100">
+            <div className="p-3 bg-white rounded-xl text-orange-500 shadow-sm">
+              <Shield className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900">Video Consultation</h3>
+              <p className="text-sm text-slate-600 mt-1 font-medium">15-minute live video call with a verified expert technician.</p>
+            </div>
+          </div>
 
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between">
-                <span className="text-slate-700">Remote Consultation</span>
-                <span className="font-semibold text-slate-900">₹199.00</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-700">Platform Fee</span>
-                <span className="font-semibold text-slate-900">₹0.00</span>
-              </div>
-              <div className="border-t pt-4 flex justify-between">
-                <span className="text-lg font-bold text-slate-900">Total</span>
-                <span className="text-lg font-bold text-blue-600">₹199.00</span>
+          <div className="flex justify-between items-end border-b border-slate-100 pb-4">
+            <div>
+              <p className="text-sm text-slate-500 font-medium">Total Amount</p>
+              <p className="text-4xl font-black text-slate-900">₹199</p>
+            </div>
+            <div className="text-xs text-slate-400 mb-1 font-medium">Including GST</div>
+          </div>
+
+          <form onSubmit={handlePayment} className="space-y-5">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Card Number</label>
+              <div className="relative">
+                <CreditCardIcon className="absolute left-4 top-4 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="0000 0000 0000 0000"
+                  className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all font-mono text-slate-900 placeholder-slate-400 font-medium bg-slate-50 focus:bg-white"
+                  maxLength={19}
+                  required
+                />
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <CreditCard className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-900">Demo Payment Mode</span>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Expiry Date</label>
+                <input
+                  type="text"
+                  placeholder="MM/YY"
+                  className="w-full px-4 py-3.5 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all text-center text-slate-900 placeholder-slate-400 font-medium bg-slate-50 focus:bg-white"
+                  maxLength={5}
+                  required
+                />
               </div>
-              <p className="text-sm text-blue-700">
-                This is a demo environment. No actual payment will be processed.
-              </p>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">CVV</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-4 w-4 h-4 text-slate-400" />
+                  <input
+                    type="password"
+                    placeholder="123"
+                    className="w-full pl-10 pr-4 py-3.5 rounded-xl border-2 border-slate-100 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all text-center text-slate-900 placeholder-slate-400 font-medium bg-slate-50 focus:bg-white"
+                    maxLength={3}
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             <button
-              onClick={handlePayment}
-              disabled={processing}
-              className="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              type="submit"
+              disabled={loading}
+              className="w-full py-5 bg-orange-500 text-white rounded-xl font-bold text-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/30 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed mt-6 hover:scale-[1.02] active:scale-[0.98]"
             >
-              {processing ? 'Processing...' : 'Complete Payment ₹199'}
+              {loading ? 'Processing...' : 'Pay Securely'}
             </button>
+          </form>
 
-            <p className="text-xs text-slate-500 text-center mt-4">
-              By clicking "Complete Payment", you agree to our Terms of Service and Privacy Policy
-            </p>
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-400 font-medium">
+            <Lock className="w-3 h-3" />
+            Payments are secure and encrypted
           </div>
-        </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mt-8">
-          <h3 className="font-semibold text-yellow-900 mb-2">Payment Integration Note</h3>
-          <p className="text-sm text-yellow-800">
-            To implement payments in your application, you'll need to integrate with Stripe or Razorpay. This demo uses simulated payments.
-            For production, visit{' '}
-            <a href="https://bolt.new/setup/stripe" className="underline hover:text-yellow-900" target="_blank" rel="noopener noreferrer">
-              https://bolt.new/setup/stripe
-            </a>
-            {' '}to set up real payment processing.
-          </p>
         </div>
       </div>
     </div>

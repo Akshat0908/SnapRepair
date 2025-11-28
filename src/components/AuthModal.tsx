@@ -1,34 +1,55 @@
-import { useState } from 'react';
-import { X } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState } from 'react';
+import { X, Mail, Phone, ArrowRight, Loader, Lock } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { supabaseDB } from '../lib/db_supabase';
 
-type AuthModalProps = {
+interface AuthModalProps {
   onClose: () => void;
-};
+}
 
 export function AuthModal({ onClose }: AuthModalProps) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signup');
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError(null);
 
     try {
-      if (mode === 'signup') {
-        await signUp(email, password, name, phone);
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
       } else {
-        await signIn(email, password);
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name,
+              phone,
+            }
+          }
+        });
+        if (signUpError) throw signUpError;
+
+        if (data.user && !data.session) {
+          setError("Please check your email to confirm your account.");
+          setLoading(false);
+          return;
+        }
       }
       onClose();
     } catch (err: any) {
+      console.error(err);
       setError(err.message || 'An error occurred');
     } finally {
       setLoading(false);
@@ -36,109 +57,117 @@ export function AuthModal({ onClose }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-8 relative border border-slate-200 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in duration-200">
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 text-slate-400 hover:text-slate-900 transition"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
         >
-          <X className="w-5 h-5" />
+          <X className="w-6 h-6" />
         </button>
 
-        <h2 className="text-3xl font-bold mb-2 text-slate-900">
-          {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
-        </h2>
-        <p className="text-slate-600 mb-8">
-          {mode === 'signup' ? 'Start fixing issues today' : 'Sign in to continue'}
-        </p>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 text-sm">
-            {error}
+        <div className="p-8">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </h2>
+            <p className="text-slate-600">
+              {isLogin ? 'Enter your details to access your repairs' : 'Start your repair journey today'}
+            </p>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
-                  placeholder="Enter your name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
-                  placeholder="Optional"
-                />
-              </div>
-            </>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
+              {error}
+            </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="you@example.com"
-            />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  placeholder="John Doe"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  placeholder="john@example.com"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number (Optional)</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <Loader className="w-6 h-6 animate-spin" />
+              ) : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm text-blue-600 font-medium hover:text-blue-700 hover:underline"
+            >
+              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            </button>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Min. 6 characters"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-semibold hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-          >
-            {loading ? 'Please wait...' : mode === 'signup' ? 'Sign Up' : 'Sign In'}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => {
-              setMode(mode === 'signup' ? 'signin' : 'signup');
-              setError('');
-            }}
-            className="text-slate-600 hover:text-slate-900 text-sm font-medium transition"
-          >
-            {mode === 'signup'
-              ? 'Already have an account? Sign in'
-              : "Don't have an account? Sign up"}
-          </button>
         </div>
       </div>
     </div>
